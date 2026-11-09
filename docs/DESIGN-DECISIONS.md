@@ -71,9 +71,9 @@ nesting) has to be built from scratch. That is real work.
 runtime installs and no internet access. A packaged installer is preferred.
 A Microsoft Store version is possible later and not a driver.
 
-**Why.** [Author] The target environments include critical infrastructure
-(water, 911 dispatch, CUI-handling systems) where data sovereignty matters
-and where internet-dependent tools get rejected.
+**Why.** The tool is meant for critical-infrastructure networks (utilities,
+emergency services, systems handling Controlled Unclassified Information)
+where data sovereignty matters and internet-dependent tools get rejected.
 
 **Rejected.** A cloud or web version. Any feature that needs the network at
 runtime. Any "phone home" update check.
@@ -157,27 +157,50 @@ into Rust source by hand.
 release. Hand-typed commands rot and hide mistakes. Data with a recorded
 source can be diffed between releases and audited.
 
-## D8. Platforms are modelled by image family, not by marketing name
+## D8. Platforms follow Catalyst Center's levels, plus image and reference
 
-**Decision.** Three levels. An **image** is the software file family you
-install. A **family** is a group of models sharing one Cisco command
-reference, and records the image it runs. A **model** belongs to one family
-and records its differences as callouts.
+**Decision.** The hardware levels are Catalyst Center's [Author]:
+
+- **Family**: the broad device type, such as Switches and Hubs.
+- **Series**: such as Catalyst 9300 Series or Catalyst 9350 Series.
+- **Platform**: a product ID, such as C9300-48P.
+
+Alongside these, each series records:
+
+- **Image**: the software file family it runs, such as cat9k_iosxe.
+- **Command reference**: the Cisco command reference it follows. Several
+  series can share one (the 9350 follows the 9300's).
+- **Default Catalyst Center role**: a starting suggestion (D24).
+
+One image does not mean one command set: a feature can exist on some series
+and not others. Those differences are callouts in the command catalog.
 
 **Images, from the author installing firmware [Author, 2026-11-08]:**
 
-| Image | Hardware |
-|---|---|
-| cat9k_iosxe | C9300, C9350, C9400, C9500, C9550, C9600, C9610 |
-| cat9k_lite_iosxe | C9200, C9200CX |
-| C9800-universalk9 | C9800 (C91xx AP images are packaged inside it) |
-| cat3k_caa-universalk9 | C3650, C3850 (legacy, outside the 26 scope) |
-| ie3x00-universalk9 | IE3400, IE3500 |
+| Image | Series | Variants |
+|---|---|---|
+| cat9k_iosxe | C9300, C9350, C9400, C9500, C9550, C9600, C9610 | |
+| cat9k_lite_iosxe | C9200, C9200CX | |
+| C9800-universalk9 | C9800 (C91xx AP images are packaged inside it) | |
+| cat3k_caa-universalk9 | C3650, C3850 (legacy, outside the 26 scope) | |
+| ie3x00-universalk9 | IE3400, IE3500 | |
+| c8000be-universalk9 | Catalyst 8300 Edge Platform | npe |
+| c8kg2be-universalk9 | Catalyst 8300 and 8200 Secure Router Gen2 | |
+| c8000aep-universalk9 | Catalyst 8500 Edge Platform, 8500 Secure Router Gen2 | npe, noli |
+| c8000aes-universalk9 | Catalyst 8500L Edge Platform | |
+| ir1800-universalk9 | IR1833, IR1835 | |
 
-One image does not mean one command set: a feature can exist on some models
-and not others. Those differences are callouts in the command catalog.
-Images for the Catalyst 8300, 8500 and IR1800 are not recorded yet; the
-author can confirm them from the firmware.
+Variants: `npe` is No Payload Encryption, `noli` is No Lawful Intercept, and
+they can combine (`_npe_noli`).
+
+**PIDs [Author].** In a Catalyst 9300 PID such as C9300-48P-A, the letter
+after the port count gives power: P is PoE+, U is UPoE, H is UPoE+, T is no
+PoE. A trailing -A means the device originally shipped with Network
+Advantage. Not yet used by the code; applying it to other series is
+unverified.
+
+**C9200CX [Author].** Uses the C9200 command reference, but its feature set
+may be limited. Its data sheet is the source for feature limits.
 
 **Why.** [Author] The IE3500 runs the same image as the IE3400: "x" in
 IE3x00 is a wildcard in the image name. The IR1833 and IR1835 share an image
@@ -194,9 +217,6 @@ release notes [6]; command references were seen for the 9200, 9300, 9400,
 9500, and 9600 only [6]. [Verified] A search for IE3500 release notes
 returned 17.x notes and no 26.x ones [7]. The author's statement that it
 shares the IE3x00 image is treated as authoritative here, with the gap noted.
-
-**Versions the author runs.** [Author] 26.1.1, 26.1.2, and 26.2.1. 26.1.2 is
-the planned standard; 9200s go to 26.2.1.
 
 ## D9. Every claim about availability is one of three things
 
@@ -301,9 +321,13 @@ defense-in-depth mindset means not relying on any single control, including
 **Decision.** No real configurations, addresses, credentials, or CUI in any
 cloud AI tool while working on this project. Test fixtures are synthetic.
 
-**Why.** [Author] The environments in view include 911 dispatch, water
-systems, and CUI as defined by the National Archives. A leak through a
-development tool is still a leak.
+**Why.** Networks this tool is meant for carry emergency-services and
+utility traffic, and CUI as defined by the National Archives. A leak
+through a development tool is still a leak.
+
+**This repository is public.** It holds no details of any real network:
+no versions in service, upgrade plans, inventory, addressing, or how a
+particular organization assigns roles. Examples are generic or synthetic.
 
 ## D16. Look and feel
 
@@ -332,10 +356,8 @@ affiliation.
 6. Later, in order: UML-style modelling, SVG diagrams, IOS XE 16/17, IOS 15,
    NX-OS (low priority).
 
-[Author] Platform priority follows what the author can test on. Legacy gear
-in the environment includes IE3000, IE4000, ISR 4300/4400, Catalyst 2960
-family, 3850, 6709, and NCS 2000 optical systems; these are out of scope for
-the 26 work.
+[Author] Platform priority follows what the author can test on. Older
+platforms and software trains are out of scope for the IOS XE 26 work.
 
 ## D18. Dependencies only on purpose
 
@@ -385,8 +407,8 @@ misspelled field gives an error naming the line. The other errors name the
 entry and field instead, because by then the file has already been read.
 
 **Status.** Built. The list is `data/platforms.toml`, which is built into
-the program so it works offline. Every model names the source that says
-which family it belongs to.
+the program so it works offline. Every family, image, command reference,
+series, platform and default role names the source behind it.
 
 ## D21. "Unverified" is its own kind of finding
 
@@ -439,6 +461,49 @@ that mirror the file exactly, refusing unknown or misspelled fields. Second,
 those are checked and turned into the program's own types (D19). Nothing
 unchecked gets past the loader.
 
+## D24. One Catalyst Center role, any number of role tags
+
+**Decision (2026-11-08, author).** A device has two kinds of role.
+
+- **Catalyst Center role.** Exactly one per device: Border Router, Core,
+  Distribution or Access. It is set to whatever Catalyst Center needs for
+  that device, and never worked out from anything else. Each series carries
+  Cisco's usual role as a suggestion (9200, 9200CX, 9300, 9400: Access;
+  9500: Distribution; 9600: Core; xx50 and xx10 take their parent's), with
+  its source.
+- **Role tags.** Any number per device, from `data/roles.toml`, which is
+  meant to be edited. Components attach to tags, and a device gets every
+  component its tags call for. Starting tags: Border, Core, P-Router,
+  Distribution, PE, CE / Site Router, Access.
+
+**Why.** [Author] Cisco's model says one device fills one role, and real
+networks do not work that way. A site router can be border, distribution
+and access at once. Catalyst Center also uses its role for telemetry and
+QoS, so a device sometimes has to carry a Catalyst Center role that
+understates what it does. Keeping the two apart lets each be right.
+
+**Status.** The role types and the tag file are built. Attaching components
+to tags comes with the component work. Loading an edited tag file from
+outside the program comes with the GUI; for now it is built in.
+
+**Rejected.** A single role per device (Cisco's model). Inferring the
+Catalyst Center role from the tags.
+
+## D25. Firmware file names are read, not typed
+
+**Decision.** The tool can read a firmware file name such as
+`c8000aep-universalk9_npe_noli.17.15.05.SPA.bin` and give back the image,
+the variants and the release (17.15.5).
+
+**Why.** [Author] File names follow `<image>[_variant].<MM>.<mm>.<rr>.SPA.bin`
+across releases. Pasting a name you already have is faster than picking
+three fields, and cannot be mistyped.
+
+**Accuracy rule.** Only images and variants in the platform list are
+accepted. A name that is almost right is refused, not guessed at. Image
+names can contain underscores (`cat9k_iosxe`), so variants are found by
+matching the longest known image name first, not by splitting on `_`.
+
 ---
 
 ## Open questions
@@ -455,6 +520,11 @@ unchecked gets past the loader.
 6. **Project license.** Not chosen.
 7. **Command catalog layout** in TOML (D7, D23): how a command, its
    arguments, its mode, and its per-platform availability are written.
+8. **Catalyst Center family names** for routers, wireless controllers and
+   access points, and command references and default roles for the router,
+   IE and 9800 series (D8).
+9. **PID decoding** (D8): whether the PoE and license letters apply beyond
+   the Catalyst 9300, and what letters other than -A mean.
 
 ## Non-goals
 

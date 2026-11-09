@@ -5,8 +5,10 @@ Cisco Catalyst Center configuration templates (Jinja2 and Apache Velocity)
 from a visual block editor, without having to be programmers.
 
 **Status: early groundwork.** The core data definitions exist (releases,
-sources, licenses, platforms, availability, findings), and the platform list
-is a checked data file, `data/platforms.toml`. There is no GUI and no
+sources, licenses, platforms, roles, availability, findings). The platform
+list (`data/platforms.toml`) and role tags (`data/roles.toml`) are checked
+data files, and firmware file names can be read into image, variant and
+release. There is no GUI and no
 template generation yet. Read
 [docs/DESIGN-DECISIONS.md](docs/DESIGN-DECISIONS.md) to see what has been
 decided, why, and what is still open.

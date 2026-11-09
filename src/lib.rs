@@ -19,4 +19,5 @@ pub mod finding;
 pub mod license;
 pub mod platform;
 pub mod release;
+pub mod roles;
 pub mod source;

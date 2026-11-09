@@ -1,0 +1,53 @@
+# CatalystTemplatePro role tags.
+#
+# A role tag says what a device actually does. A device can carry as many
+# tags as it needs; a site router can be border, distribution and access at
+# once. Components (AAA, ACLs, and so on) attach to tags, and a device gets
+# every component its tags call for. See docs/DESIGN-DECISIONS.md, D24.
+#
+# This is separate from the single Catalyst Center role (Border Router,
+# Core, Distribution or Access), which is set to whatever Catalyst Center
+# needs for that device.
+#
+# Edit freely: add, rename or remove tags as templates are written. Ids are
+# lowercase letters, digits and hyphens, and must be unique.
+#
+# This file is public. Keep descriptions general; do not describe how a
+# particular organization uses these roles.
+
+schema_version = 1
+
+[[tag]]
+id = "border"
+name = "Border"
+description = "Connects the network to something outside it, such as the Internet, a carrier network, or a VPN tunnel."
+
+[[tag]]
+id = "core"
+name = "Core"
+description = "High-capacity switching and routing at the center of the network."
+
+[[tag]]
+id = "p-router"
+name = "P-Router"
+description = "MPLS provider router. Switches labels inside the MPLS core."
+
+[[tag]]
+id = "distribution"
+name = "Distribution"
+description = "Aggregates and backhauls access devices."
+
+[[tag]]
+id = "pe"
+name = "PE"
+description = "MPLS provider edge. Connects customer sites into the MPLS network."
+
+[[tag]]
+id = "ce"
+name = "CE / Site Router"
+description = "Customer edge. Routes a site into the provider network; may terminate VRFs."
+
+[[tag]]
+id = "access"
+name = "Access"
+description = "Connects end devices, users and access points."

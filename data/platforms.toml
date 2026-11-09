@@ -1,27 +1,33 @@
 # CatalystTemplatePro platform list.
 #
-# Three levels, from the software you install down to the hardware:
-#   image  - the software image file family, such as cat9k_iosxe
-#   family - models that share one Cisco command reference
-#   model  - one hardware model or series
-# Families point at the image they run (left out when not yet known).
-# Models point at a family and at the source that says they belong there.
-# Features can still differ by model within one image; those differences
-# become callouts in the command catalog. See docs/DESIGN-DECISIONS.md,
-# D8 and D20.
+# Hardware levels follow Catalyst Center:
+#   family   - the broad device type, such as Switches and Hubs
+#   series   - such as Catalyst 9300 Series
+#   platform - a product ID (PID), such as C9300-48P
+# Each series also records:
+#   image     - the software image file family it runs, such as cat9k_iosxe
+#   reference - the Cisco command reference it follows (series can share one)
+#   default_role and default_role_source - Cisco's usual Catalyst Center role
+#               for the series, as a starting suggestion
+# Images list the variants they come in, such as npe (No Payload Encryption).
+#
+# Anything not yet known is left out, never guessed. The program reports a
+# missing value as unknown. See docs/DESIGN-DECISIONS.md, D8, D20 and D24.
+#
+# Series names here are plain labels. The exact strings Catalyst Center
+# uses have not been checked.
+#
+# This file is public. Do not add anything about a real network: no
+# versions in service, inventory, or site details.
 #
 # Rules the program checks when it loads this file (it refuses the whole
 # file if any fail):
-#   - every image name, id and model name is unique and not empty
-#   - every image's source exists below
-#   - every family's image exists below
-#   - every model's family exists below
-#   - every model's source exists below
+#   - every id, name and PID is unique and not empty
+#   - every reference to a source, family, variant, image, command
+#     reference or series points at an entry that exists in this file
+#   - a default_role always comes with a default_role_source
 #   - every date is real and written as YYYY-MM-DD
 #   - no field is misspelled or unknown
-#
-# To add a device that runs a family's image, add a [[model]] entry and,
-# if needed, a [[source]] entry that backs it. No code change is needed.
 
 schema_version = 1
 
@@ -35,9 +41,46 @@ location = "https://www.cisco.com/c/en/us/support/ios-nx-os-software/ios-xe-26/p
 retrieved = "2026-11-08"
 
 [[source]]
+id = "cisco-iosxe26-documentation"
+kind = "command-reference"
+title = "Cisco IOS XE 26 documentation page, which lists per-platform command references"
+location = "https://www.cisco.com/c/en/us/support/ios-nx-os-software/ios-xe-26-1-1/model.html"
+retrieved = "2026-11-08"
+
+[[source]]
+id = "engineer-catalyst-center-levels"
+kind = "engineer-statement"
+title = "Catalyst Center organizes devices as Family > Series > Platform, for example Switches and Hubs > Catalyst 9300 Series > C9300-48P"
+retrieved = "2026-11-08"
+
+[[source]]
+id = "engineer-default-roles"
+kind = "engineer-statement"
+title = "Cisco's usual Catalyst Center role by series: 9200, 9200CX, 9300 and 9400 are Access; 9500 is Distribution; 9600 is Core; xx50 and xx10 series take their parent's role; 91xx access points are Access"
+retrieved = "2026-11-08"
+
+[[source]]
 id = "engineer-newer-c9k-models"
 kind = "engineer-statement"
-title = "C9350, C9550 and C9610 run the same image as the matching 00 models, with extra features such as power management; the command references are the same"
+title = "C9350, C9550 and C9610 run the same image as the matching 00 series, with extra features such as power management; the command references are the same"
+retrieved = "2026-11-08"
+
+[[source]]
+id = "engineer-images"
+kind = "engineer-statement"
+title = "Image families from installing firmware: cat9k_iosxe for C9300, C9350, C9400, C9500, C9550, C9600 and C9610; cat9k_lite_iosxe for C9200 and C9200CX; C9800-universalk9 for the C9800, with C91xx AP images packaged inside it; cat3k_caa-universalk9 for C3650 and C3850; ie3x00-universalk9 for IE3400 and IE3500. Commands can differ by model where a feature exists on some models only."
+retrieved = "2026-11-08"
+
+[[source]]
+id = "engineer-router-images"
+kind = "engineer-statement"
+title = "Router image families from installing firmware: c8000be-universalk9 (also as _npe) for the Catalyst 8300 Edge Platform; c8kg2be-universalk9 for the Catalyst 8300 and 8200 Secure Router Gen2; c8000aep-universalk9 (also as _npe, _noli and _npe_noli) for the Catalyst 8500 Edge Platform and 8500 Secure Router Gen2; c8000aes-universalk9 for the Catalyst 8500L Edge Platform; ir1800-universalk9 for the IR1833 and IR1835. File names follow <image>[_variant].<MM>.<mm>.<rr>.SPA.bin."
+retrieved = "2026-11-08"
+
+[[source]]
+id = "engineer-c9200cx"
+kind = "engineer-statement"
+title = "The C9200CX uses the C9200 command reference, but its feature set may be limited; its data sheet is the place to check features"
 retrieved = "2026-11-08"
 
 [[source]]
@@ -55,14 +98,28 @@ retrieved = "2026-11-08"
 [[source]]
 id = "engineer-c9800-40"
 kind = "engineer-statement"
-title = "A C9800-40 wireless controller is in service on IOS XE 26.1.2"
+title = "The C9800-40 is a Catalyst 9800 wireless controller"
 retrieved = "2026-11-08"
 
-[[source]]
-id = "engineer-images"
-kind = "engineer-statement"
-title = "Image families from installing firmware: cat9k_iosxe for C9300, C9350, C9400, C9500, C9550, C9600 and C9610; cat9k_lite_iosxe for C9200 and C9200CX; C9800-universalk9 for the C9800, with C91xx AP images packaged inside it; cat3k_caa-universalk9 for C3650 and C3850; ie3x00-universalk9 for IE3400 and IE3500. Commands can differ by model where a feature exists on some models only."
-retrieved = "2026-11-08"
+# --------------------------------------------------------------- families
+
+[[family]]
+id = "switches-and-hubs"
+name = "Switches and Hubs"
+source = "engineer-catalyst-center-levels"
+
+# The Catalyst Center family names for routers, wireless controllers and
+# access points are not recorded yet, so those series have no family.
+
+# --------------------------------------------------------------- variants
+
+[[variant]]
+id = "npe"
+name = "No Payload Encryption"
+
+[[variant]]
+id = "noli"
+name = "No Lawful Intercept"
 
 # ----------------------------------------------------------------- images
 
@@ -82,149 +139,252 @@ note = "C91xx access point images are packaged inside this image."
 [[image]]
 name = "cat3k_caa-universalk9"
 source = "engineer-images"
-note = "Catalyst 3650 and 3850. Legacy and outside the IOS XE 26 scope, so no families use it yet."
+note = "Catalyst 3650 and 3850. Legacy and outside the IOS XE 26 scope, so no series use it yet."
 
 [[image]]
 name = "ie3x00-universalk9"
 source = "engineer-images"
 
-# --------------------------------------------------------------- families
+[[image]]
+name = "c8000be-universalk9"
+variants = ["npe"]
+source = "engineer-router-images"
 
-[[family]]
+[[image]]
+name = "c8kg2be-universalk9"
+source = "engineer-router-images"
+
+[[image]]
+name = "c8000aep-universalk9"
+variants = ["npe", "noli"]
+source = "engineer-router-images"
+
+[[image]]
+name = "c8000aes-universalk9"
+source = "engineer-router-images"
+
+[[image]]
+name = "ir1800-universalk9"
+source = "engineer-router-images"
+
+# ----------------------------------------------------- command references
+
+[[reference]]
 id = "catalyst-9200"
-name = "Catalyst 9200"
-image = "cat9k_lite_iosxe"
+name = "Command Reference, Catalyst 9200"
+source = "cisco-iosxe26-documentation"
 
-[[family]]
+[[reference]]
 id = "catalyst-9300"
-name = "Catalyst 9300"
-image = "cat9k_iosxe"
+name = "Command Reference, Catalyst 9300"
+source = "cisco-iosxe26-documentation"
 
-[[family]]
+[[reference]]
 id = "catalyst-9400"
-name = "Catalyst 9400"
-image = "cat9k_iosxe"
+name = "Command Reference, Catalyst 9400"
+source = "cisco-iosxe26-documentation"
 
-[[family]]
+[[reference]]
 id = "catalyst-9500"
-name = "Catalyst 9500"
-image = "cat9k_iosxe"
+name = "Command Reference, Catalyst 9500"
+source = "cisco-iosxe26-documentation"
 
-[[family]]
+[[reference]]
 id = "catalyst-9600"
-name = "Catalyst 9600"
-image = "cat9k_iosxe"
+name = "Command Reference, Catalyst 9600"
+source = "cisco-iosxe26-documentation"
 
-[[family]]
-id = "catalyst-9800"
-name = "Catalyst 9800"
-image = "C9800-universalk9"
-note = "Wireless controllers. Large command family of its own."
-
-[[family]]
-id = "catalyst-8300"
-name = "Catalyst 8300"
-note = "Image not yet recorded. Unverified whether the 8200 belongs here; Cisco publishes 8200 and 8300 release notes together."
-
-[[family]]
-id = "catalyst-8500"
-name = "Catalyst 8500"
-note = "Image not yet recorded."
-
-[[family]]
+[[reference]]
 id = "ir1800"
-name = "IR1800"
-note = "Image not yet recorded."
+name = "Command Reference, IR1800"
+source = "engineer-ir1800"
 
-[[family]]
-id = "ie3x00"
-name = "IE3x00"
-image = "ie3x00-universalk9"
-note = "The x is a wildcard in the image name."
+# ----------------------------------------------------------------- series
 
-# ----------------------------------------------------------------- models
-
-[[model]]
-name = "C9200"
-family = "catalyst-9200"
-source = "cisco-iosxe26-release-notes"
-
-[[model]]
-name = "C9200CX"
-family = "catalyst-9200"
+[[series]]
+id = "catalyst-9200"
+name = "Catalyst 9200 Series"
+family = "switches-and-hubs"
+image = "cat9k_lite_iosxe"
+reference = "catalyst-9200"
+default_role = "access"
+default_role_source = "engineer-default-roles"
 source = "engineer-images"
-note = "Runs the same image as the C9200. Sharing the C9200 command reference is assumed and not yet checked."
 
-[[model]]
-name = "C9300"
-family = "catalyst-9300"
-source = "cisco-iosxe26-release-notes"
+[[series]]
+id = "catalyst-9200cx"
+name = "Catalyst 9200CX Series"
+family = "switches-and-hubs"
+image = "cat9k_lite_iosxe"
+reference = "catalyst-9200"
+default_role = "access"
+default_role_source = "engineer-default-roles"
+source = "engineer-c9200cx"
+note = "Compact switches. Feature set may be limited compared with the 9200; check the data sheet."
 
-[[model]]
-name = "C9350"
-family = "catalyst-9300"
+[[series]]
+id = "catalyst-9300"
+name = "Catalyst 9300 Series"
+family = "switches-and-hubs"
+image = "cat9k_iosxe"
+reference = "catalyst-9300"
+default_role = "access"
+default_role_source = "engineer-default-roles"
+source = "engineer-images"
+
+[[series]]
+id = "catalyst-9350"
+name = "Catalyst 9350 Series"
+family = "switches-and-hubs"
+image = "cat9k_iosxe"
+reference = "catalyst-9300"
+default_role = "access"
+default_role_source = "engineer-default-roles"
 source = "engineer-newer-c9k-models"
-note = "Extra features over the C9300, such as power management. Expect platform callouts."
+note = "Extra features over the 9300, such as power management. Expect platform callouts."
 
-[[model]]
-name = "C9400"
-family = "catalyst-9400"
-source = "cisco-iosxe26-release-notes"
+[[series]]
+id = "catalyst-9400"
+name = "Catalyst 9400 Series"
+family = "switches-and-hubs"
+image = "cat9k_iosxe"
+reference = "catalyst-9400"
+default_role = "access"
+default_role_source = "engineer-default-roles"
+source = "engineer-images"
 
-[[model]]
-name = "C9500"
-family = "catalyst-9500"
-source = "cisco-iosxe26-release-notes"
+[[series]]
+id = "catalyst-9500"
+name = "Catalyst 9500 Series"
+family = "switches-and-hubs"
+image = "cat9k_iosxe"
+reference = "catalyst-9500"
+default_role = "distribution"
+default_role_source = "engineer-default-roles"
+source = "engineer-images"
 
-[[model]]
-name = "C9550"
-family = "catalyst-9500"
+[[series]]
+id = "catalyst-9550"
+name = "Catalyst 9550 Series"
+family = "switches-and-hubs"
+image = "cat9k_iosxe"
+reference = "catalyst-9500"
+default_role = "distribution"
+default_role_source = "engineer-default-roles"
 source = "engineer-newer-c9k-models"
-note = "Extra features over the C9500. Expect platform callouts."
+note = "Extra features over the 9500. Expect platform callouts."
 
-[[model]]
-name = "C9600"
-family = "catalyst-9600"
-source = "cisco-iosxe26-release-notes"
+[[series]]
+id = "catalyst-9600"
+name = "Catalyst 9600 Series"
+family = "switches-and-hubs"
+image = "cat9k_iosxe"
+reference = "catalyst-9600"
+default_role = "core"
+default_role_source = "engineer-default-roles"
+source = "engineer-images"
 
-[[model]]
-name = "C9610"
-family = "catalyst-9600"
+[[series]]
+id = "catalyst-9610"
+name = "Catalyst 9610 Series"
+family = "switches-and-hubs"
+image = "cat9k_iosxe"
+reference = "catalyst-9600"
+default_role = "core"
+default_role_source = "engineer-default-roles"
 source = "engineer-newer-c9k-models"
-note = "Extra features over the C9600. Expect platform callouts."
+note = "Extra features over the 9600. Expect platform callouts."
 
-[[model]]
-name = "C9800-40"
-family = "catalyst-9800"
-source = "engineer-c9800-40"
+[[series]]
+id = "catalyst-9800"
+name = "Catalyst 9800 Series"
+image = "C9800-universalk9"
+source = "engineer-images"
+note = "Wireless controllers. Catalyst Center family, command reference and default role not recorded yet."
 
-[[model]]
-name = "C8300"
-family = "catalyst-8300"
-source = "cisco-iosxe26-release-notes"
+[[series]]
+id = "catalyst-8300-edge"
+name = "Catalyst 8300 Series Edge Platform"
+image = "c8000be-universalk9"
+source = "engineer-router-images"
+note = "Catalyst Center family, command reference and default role not recorded yet."
 
-[[model]]
-name = "C8500"
-family = "catalyst-8500"
-source = "cisco-iosxe26-release-notes"
+[[series]]
+id = "catalyst-8300-secure-gen2"
+name = "Catalyst 8300 Series Secure Router Gen2"
+image = "c8kg2be-universalk9"
+source = "engineer-router-images"
+note = "Catalyst Center family, command reference and default role not recorded yet."
 
-[[model]]
-name = "IR1833"
-family = "ir1800"
-source = "engineer-ir1800"
+[[series]]
+id = "catalyst-8200-secure-gen2"
+name = "Catalyst 8200 Series Secure Router Gen2"
+image = "c8kg2be-universalk9"
+source = "engineer-router-images"
+note = "Catalyst Center family, command reference and default role not recorded yet."
 
-[[model]]
-name = "IR1835"
-family = "ir1800"
-source = "engineer-ir1800"
+[[series]]
+id = "catalyst-8500-edge"
+name = "Catalyst 8500 Series Edge Platform"
+image = "c8000aep-universalk9"
+source = "engineer-router-images"
+note = "Catalyst Center family, command reference and default role not recorded yet."
 
-[[model]]
-name = "IE3400"
-family = "ie3x00"
-source = "cisco-iosxe26-release-notes"
+[[series]]
+id = "catalyst-8500-secure-gen2"
+name = "Catalyst 8500 Series Secure Router Gen2"
+image = "c8000aep-universalk9"
+source = "engineer-router-images"
+note = "Catalyst Center family, command reference and default role not recorded yet."
 
-[[model]]
-name = "IE3500"
-family = "ie3x00"
+[[series]]
+id = "catalyst-8500l-edge"
+name = "Catalyst 8500L Series Edge Platform"
+image = "c8000aes-universalk9"
+source = "engineer-router-images"
+note = "Catalyst Center family, command reference and default role not recorded yet."
+
+[[series]]
+id = "ir1800"
+name = "IR1800 Series"
+image = "ir1800-universalk9"
+reference = "ir1800"
+source = "engineer-router-images"
+note = "Catalyst Center family and default role not recorded yet."
+
+[[series]]
+id = "ie3400"
+name = "IE3400 Series"
+image = "ie3x00-universalk9"
+source = "engineer-images"
+note = "Catalyst Center family, command reference and default role not recorded yet."
+
+[[series]]
+id = "ie3500"
+name = "IE3500 Series"
+image = "ie3x00-universalk9"
 source = "engineer-ie3x00"
 note = "Cisco's 26.x release-note titles seen so far name IE3x00, IE3100 and IE3400 but not IE3500."
+
+# -------------------------------------------------------------- platforms
+
+[[platform]]
+pid = "C9300-48P"
+series = "catalyst-9300"
+source = "engineer-catalyst-center-levels"
+note = "48 ports; P means PoE+."
+
+[[platform]]
+pid = "C9800-40"
+series = "catalyst-9800"
+source = "engineer-c9800-40"
+
+[[platform]]
+pid = "IR1833"
+series = "ir1800"
+source = "engineer-ir1800"
+
+[[platform]]
+pid = "IR1835"
+series = "ir1800"
+source = "engineer-ir1800"
