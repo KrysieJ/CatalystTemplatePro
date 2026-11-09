@@ -73,9 +73,7 @@ impl Availability {
                 None => vec![Finding {
                     kind: FindingKind::License,
                     subject: subject.to_string(),
-                    message: format!(
-                        "Requires {needed}. The target's licenses are not recorded."
-                    ),
+                    message: format!("Requires {needed}. The target's licenses are not recorded."),
                     source: Some(source.clone()),
                 }],
             },
@@ -146,7 +144,9 @@ mod tests {
             license: None,
             source: example_source(),
         };
-        assert!(availability.review("hostname", Some(&essentials_switch())).is_empty());
+        assert!(availability
+            .review("hostname", Some(&essentials_switch()))
+            .is_empty());
         assert!(availability.review("hostname", None).is_empty());
     }
 

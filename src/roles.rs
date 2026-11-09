@@ -188,14 +188,25 @@ name = "Access"
 
     #[test]
     fn catalyst_center_roles_print_their_names() {
-        assert_eq!(CatalystCenterRole::BorderRouter.to_string(), "Border Router");
+        assert_eq!(
+            CatalystCenterRole::BorderRouter.to_string(),
+            "Border Router"
+        );
         assert_eq!(CatalystCenterRole::Access.to_string(), "Access");
     }
 
     #[test]
     fn built_in_tags_load() {
         let list = RoleTagList::built_in().expect("data/roles.toml must load");
-        for id in ["border", "core", "p-router", "distribution", "pe", "ce", "access"] {
+        for id in [
+            "border",
+            "core",
+            "p-router",
+            "distribution",
+            "pe",
+            "ce",
+            "access",
+        ] {
             assert!(list.get(id).is_some(), "missing built-in tag {id}");
         }
     }

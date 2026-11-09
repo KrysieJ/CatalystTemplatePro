@@ -465,7 +465,9 @@ impl PlatformList {
             }
             if let Some(reference_id) = &entry.reference {
                 must_exist(
-                    references.iter().any(|reference| &reference.id == reference_id),
+                    references
+                        .iter()
+                        .any(|reference| &reference.id == reference_id),
                     "series",
                     &entry.id,
                     "reference",
@@ -804,7 +806,10 @@ source = "example"
     }
 
     fn ids(series: Vec<&super::Series>) -> Vec<&str> {
-        series.into_iter().map(|series| series.id.as_str()).collect()
+        series
+            .into_iter()
+            .map(|series| series.id.as_str())
+            .collect()
     }
 
     // ---- the built-in list
@@ -836,7 +841,10 @@ source = "example"
         };
         assert_eq!(role_of("catalyst-9200cx"), Some(CatalystCenterRole::Access));
         assert_eq!(role_of("catalyst-9400"), Some(CatalystCenterRole::Access));
-        assert_eq!(role_of("catalyst-9550"), Some(CatalystCenterRole::Distribution));
+        assert_eq!(
+            role_of("catalyst-9550"),
+            Some(CatalystCenterRole::Distribution)
+        );
         assert_eq!(role_of("catalyst-9610"), Some(CatalystCenterRole::Core));
         // Not recorded yet: unknown, not guessed.
         assert_eq!(role_of("catalyst-8500-edge"), None);
@@ -869,7 +877,8 @@ source = "example"
             .collect();
         assert_eq!(pids, vec!["IR1833", "IR1835"]);
         assert_eq!(
-            list.platform("C9300-48P").map(|platform| platform.series_id.as_str()),
+            list.platform("C9300-48P")
+                .map(|platform| platform.series_id.as_str()),
             Some("catalyst-9300")
         );
     }
@@ -903,7 +912,11 @@ source = "example"
     fn reads_an_image_file_with_one_variant() {
         assert_eq!(
             built_in().identify_image_file("c8000be-universalk9_npe.26.02.01.SPA.bin"),
-            Ok(file("c8000be-universalk9", &["npe"], Release::new(26, 2, 1)))
+            Ok(file(
+                "c8000be-universalk9",
+                &["npe"],
+                Release::new(26, 2, 1)
+            ))
         );
     }
 
@@ -922,7 +935,10 @@ source = "example"
     #[test]
     fn tells_the_lite_image_from_the_full_one() {
         let result = built_in().identify_image_file("cat9k_lite_iosxe.17.15.04.SPA.bin");
-        assert_eq!(result.map(|found| found.image), Ok("cat9k_lite_iosxe".to_string()));
+        assert_eq!(
+            result.map(|found| found.image),
+            Ok("cat9k_lite_iosxe".to_string())
+        );
     }
 
     #[test]
@@ -982,7 +998,9 @@ source = "example"
 
     #[test]
     fn refuses_a_duplicate_series() {
-        let text = format!("{MINIMAL}\n[[series]]\nid = \"ser\"\nname = \"Again\"\nsource = \"example\"\n");
+        let text = format!(
+            "{MINIMAL}\n[[series]]\nid = \"ser\"\nname = \"Again\"\nsource = \"example\"\n"
+        );
         assert_eq!(
             PlatformList::from_toml(&text),
             Err(DataError::Duplicate {
