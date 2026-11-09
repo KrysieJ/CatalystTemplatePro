@@ -1,0 +1,11 @@
+[package]
+name = "catalyst-template-pro"
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.75"
+description = "Offline builder for modular Cisco Catalyst Center templates"
+publish = false
+
+[dependencies]
+# None, on purpose. Every dependency is code someone has to audit.
+# See docs/DESIGN-DECISIONS.md, D14 and D18.

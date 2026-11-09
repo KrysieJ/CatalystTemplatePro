@@ -15,6 +15,8 @@ Every factual claim below carries one of these:
 - **[Verified]**: seen on a primary source (Cisco's site, the linked
   repositories) during this design phase. Cited in the references.
 - **[Author]**: stated by the author from hands-on experience with the gear.
+  In the source code this appears as **[Engineer]**, because the tool will
+  record statements from any engineer, not only the author.
   Treated as a source of truth until the author says otherwise. Not
   independently verified.
 - **[Unverified]**: believed true, not checked. These are the things to go
@@ -220,8 +222,8 @@ if that is wrong.
 ## D11. The tool advises. The engineer decides.
 
 **Decision.** The tool never blocks an export. It produces findings: platform,
-license, workflow, template-syntax, and source-conflict. It can print a
-limitations report grouped by platform and license.
+license, workflow, template-syntax, source-conflict, and unverified (added in
+D21). It can print a limitations report grouped by platform and license.
 
 **Why.** [Author] The users are engineers. They need reminders, not
 hand-holding. Catalyst Center failing a workflow because a replaced device is
@@ -318,6 +320,68 @@ in the environment includes IE3000, IE4000, ISR 4300/4400, Catalyst 2960
 family, 3850, 6709, and NCS 2000 optical systems; these are out of scope for
 the 26 work.
 
+## D18. Zero dependencies, for now
+
+**Decision.** The core library uses only the Rust standard library. Dates are
+stored as three plain numbers instead of using a date library.
+
+**Why.** Every dependency is someone else's code that has to be audited and
+kept patched. Nothing written so far needs one. When something does (the GUI
+will), the dependency is added on purpose, written down here, and locked.
+
+## D19. Make wrong states impossible to write down
+
+**Decision.** The data definitions are shaped so the compiler refuses claims
+that should not exist:
+
+- A command cannot be marked supported or not supported without a source.
+  Only "unverified" may have no source.
+- A license requirement cannot be empty. A feature with no requirement simply
+  has none.
+- Release numbers and dates can only be made through functions that check
+  them, so "26.x.1" or 31 April cannot get into the catalog.
+
+**Why.** Accuracy over everything else, and an author who cannot read the
+code. A rule the compiler enforces does not depend on anyone remembering it.
+
+## D20. Platform families are a fixed list in the code
+
+**Decision.** Families (Catalyst 9300, IR1800, IE3x00 and so on) are a closed
+list in the Rust source. Models within a family are data.
+
+**Why.** When a family is added, the compiler points at every place that has
+to handle it, so nothing is forgotten. Adding one is a small, reviewable
+change.
+
+**Trade-off.** Adding a family means a code change and a rebuild, which cuts
+against "if a new device only needs a few commands, just add it". If families
+get added often, move them into data files. **Open for the author to
+confirm.**
+
+## D21. "Unverified" is its own kind of finding
+
+**Decision.** When nothing confirms a command works on the target, the tool
+says so with a finding of kind *unverified*, which carries no source.
+
+**Why.** Folding it into "platform" would make "Cisco says no" and "nobody
+has checked" look the same. They are different, and an engineer, or the
+leadership reading a limitations report, should be able to tell them apart.
+
+## D22. Licensing as written in the first code
+
+**Decision.** The first license types cover Catalyst 9000 switches only:
+Network Essentials and Advantage as base levels, DNA Essentials and Advantage
+as add-ons. A higher level covers the lower one. The base and add-on are
+checked separately.
+
+**Why.** [Verified] Cisco's 9200 guide lists exactly those levels and states
+that each Advantage level includes its Essentials level [9]. [Engineer] The
+add-ons are also called Catalyst Essentials and Advantage.
+
+**Not encoded, because not verified.** Whether an add-on requires a
+particular base level. License models for routers, IE/IR switches, and the
+9800. Licenses that are not recorded give a reminder, not silence.
+
 ---
 
 ## Open questions
@@ -331,7 +395,8 @@ the 26 work.
 4. **IE3500 on 26.x.** Confirm on a real device and note the release-note
    title gap.
 5. **License callout wording.** Confirm D10's interpretation.
-6. **Project name and license.** Neither is chosen.
+6. **Project license.** Not chosen.
+7. **Families in code or in data.** See D20.
 
 ## Non-goals
 

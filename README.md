@@ -1,10 +1,12 @@
-# (Unnamed) Catalyst Template Builder
+# CatalystTemplatePro
 
 A Rust-native, offline desktop tool that lets network engineers build modular
 Cisco Catalyst Center configuration templates (Jinja2 and Apache Velocity)
 from a visual block editor, without having to be programmers.
 
-**Status: design phase. There is no code yet.** Read
+**Status: early groundwork.** The core data definitions exist (releases,
+sources, licenses, platforms, availability, findings). There is no GUI and
+no template generation yet. Read
 [docs/DESIGN-DECISIONS.md](docs/DESIGN-DECISIONS.md) to see what has been
 decided, why, and what is still open.
 
@@ -54,6 +56,26 @@ IOS XE 26 first. Priority for testing: Catalyst 9000 family, Catalyst 8300 and
 8500, IR1800 series, IE3x00 series. Everything else is added when it costs a
 few commands, not a rewrite. See the design document for details and for
 what has and has not been verified.
+
+## Building and testing
+
+You need the Rust toolchain (`cargo`). From the repository folder:
+
+```
+cargo test
+```
+
+That builds the library and runs every example. All of them should pass. A
+failing test means either the code or the example is wrong, and both are
+worth reading. The first build also creates `Cargo.lock`; commit it, so every
+later build uses exactly the same dependency versions.
+
+Optional checks:
+
+```
+cargo fmt --check
+cargo clippy
+```
 
 ## Read this before trusting anything here
 
