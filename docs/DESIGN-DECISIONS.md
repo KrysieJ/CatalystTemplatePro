@@ -159,8 +159,25 @@ source can be diffed between releases and audited.
 
 ## D8. Platforms are modelled by image family, not by marketing name
 
-**Decision.** A platform entry records which software image family it runs,
-and a model entry records its differences from that family.
+**Decision.** Three levels. An **image** is the software file family you
+install. A **family** is a group of models sharing one Cisco command
+reference, and records the image it runs. A **model** belongs to one family
+and records its differences as callouts.
+
+**Images, from the author installing firmware [Author, 2026-11-08]:**
+
+| Image | Hardware |
+|---|---|
+| cat9k_iosxe | C9300, C9350, C9400, C9500, C9550, C9600, C9610 |
+| cat9k_lite_iosxe | C9200, C9200CX |
+| C9800-universalk9 | C9800 (C91xx AP images are packaged inside it) |
+| cat3k_caa-universalk9 | C3650, C3850 (legacy, outside the 26 scope) |
+| ie3x00-universalk9 | IE3400, IE3500 |
+
+One image does not mean one command set: a feature can exist on some models
+and not others. Those differences are callouts in the command catalog.
+Images for the Catalyst 8300, 8500 and IR1800 are not recorded yet; the
+author can confirm them from the firmware.
 
 **Why.** [Author] The IE3500 runs the same image as the IE3400: "x" in
 IE3x00 is a wildcard in the image name. The IR1833 and IR1835 share an image

@@ -1,8 +1,11 @@
 //! Hardware platforms, and the target a template is built for.
 //!
-//! Families and models are data, kept in data/platforms.toml and built into
-//! the program so it works offline. Adding a device is an edit to that
-//! file, not a code change. See docs/DESIGN-DECISIONS.md, D8 and D20.
+//! Three levels: the software image you install (such as cat9k_iosxe), the
+//! families that run it (models sharing one command reference), and the
+//! models in each family. All three are data, kept in data/platforms.toml
+//! and built into the program so it works offline. Adding a device is an
+//! edit to that file, not a code change. See docs/DESIGN-DECISIONS.md, D8
+//! and D20.
 
 use serde::Deserialize;
 
@@ -17,16 +20,35 @@ pub const BUILT_IN_PLATFORMS: &str = include_str!("../data/platforms.toml");
 /// The platform file layout this build understands.
 const SCHEMA_VERSION: u32 = 1;
 
+/// A software image family: the image file you install on a device.
+///
+/// Example of data: "cat9k_iosxe", which runs on the C9300, C9350, C9400,
+/// C9500, C9550, C9600 and C9610, backed by the engineer's statement from
+/// installing firmware.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Image {
+    /// The image name as it appears in the file name, such as
+    /// "cat9k_iosxe" or "C9800-universalk9".
+    pub name: String,
+    /// The source that says which hardware runs this image.
+    pub source: Source,
+    /// Anything worth knowing about the image.
+    pub note: Option<String>,
+}
+
 /// A group of hardware models that share one Cisco command reference.
 ///
-/// Example of data: the Catalyst 9300 family has id "catalyst-9300" and
-/// name "Catalyst 9300".
+/// Example of data: the Catalyst 9300 family has id "catalyst-9300", name
+/// "Catalyst 9300", and runs the image "cat9k_iosxe".
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Family {
     /// A short, unique id that models use to point at this family.
     pub id: String,
     /// The family's name as people say it.
     pub name: String,
+    /// The name of the image this family runs, or `None` if it has not been
+    /// recorded yet.
+    pub image: Option<String>,
     /// Anything worth knowing about the family.
     pub note: Option<String>,
 }
@@ -47,13 +69,14 @@ pub struct Model {
     pub note: Option<String>,
 }
 
-/// Every known family and model, checked and ready to use.
+/// Every known image, family and model, checked and ready to use.
 ///
 /// The fields are private so that a list can only be made by loading and
-/// checking a file. Every model in a `PlatformList` is guaranteed to point
-/// at a family in the same list.
+/// checking a file. Every family's image and every model's family is
+/// guaranteed to exist in the same list.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlatformList {
+    images: Vec<Image>,
     families: Vec<Family>,
     models: Vec<Model>,
 }
@@ -66,9 +89,21 @@ struct RawPlatformFile {
     #[serde(default)]
     source: Vec<RawSource>,
     #[serde(default)]
+    image: Vec<RawImage>,
+    #[serde(default)]
     family: Vec<RawFamily>,
     #[serde(default)]
     model: Vec<RawModel>,
+}
+
+/// An `[[image]]` entry exactly as written, before checking.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawImage {
+    name: String,
+    source: String,
+    #[serde(default)]
+    note: Option<String>,
 }
 
 /// A `[[family]]` entry exactly as written, before checking.
@@ -77,6 +112,8 @@ struct RawPlatformFile {
 struct RawFamily {
     id: String,
     name: String,
+    #[serde(default)]
+    image: Option<String>,
     #[serde(default)]
     note: Option<String>,
 }
@@ -111,6 +148,33 @@ impl PlatformList {
         }
         let sources = SourceTable::from_raw(raw.source)?;
 
+        let mut images: Vec<Image> = Vec::new();
+        for entry in raw.image {
+            require_text("image", &entry.name, "name", &entry.name)?;
+            if images.iter().any(|image| image.name == entry.name) {
+                return Err(DataError::Duplicate {
+                    what: "image",
+                    id: entry.name,
+                });
+            }
+            let source = match sources.get(&entry.source) {
+                Some(source) => source.clone(),
+                None => {
+                    return Err(DataError::UnknownReference {
+                        what: "image",
+                        id: entry.name,
+                        field: "source",
+                        target: entry.source,
+                    })
+                }
+            };
+            images.push(Image {
+                name: entry.name,
+                source,
+                note: entry.note,
+            });
+        }
+
         let mut families: Vec<Family> = Vec::new();
         for entry in raw.family {
             require_text("family", &entry.id, "id", &entry.id)?;
@@ -121,9 +185,20 @@ impl PlatformList {
                     id: entry.id,
                 });
             }
+            if let Some(image_name) = &entry.image {
+                if !images.iter().any(|image| &image.name == image_name) {
+                    return Err(DataError::UnknownReference {
+                        what: "family",
+                        id: entry.id,
+                        field: "image",
+                        target: image_name.clone(),
+                    });
+                }
+            }
             families.push(Family {
                 id: entry.id,
                 name: entry.name,
+                image: entry.image,
                 note: entry.note,
             });
         }
@@ -164,7 +239,29 @@ impl PlatformList {
             });
         }
 
-        Ok(PlatformList { families, models })
+        Ok(PlatformList {
+            images,
+            families,
+            models,
+        })
+    }
+
+    /// Purpose: every image, in the order the file lists them.
+    pub fn images(&self) -> &[Image] {
+        &self.images
+    }
+
+    /// Purpose: find an image by its exact name.
+    pub fn image(&self, name: &str) -> Option<&Image> {
+        self.images.iter().find(|image| image.name == name)
+    }
+
+    /// Purpose: every family that runs one image, in file order.
+    pub fn families_on(&self, image_name: &str) -> Vec<&Family> {
+        self.families
+            .iter()
+            .filter(|family| family.image.as_deref() == Some(image_name))
+            .collect()
     }
 
     /// Purpose: every family, in the order the file lists them.
@@ -266,15 +363,97 @@ source = "example"
     }
 
     #[test]
-    fn built_in_list_groups_models_by_image() {
+    fn built_in_list_groups_models_into_families() {
         let list = PlatformList::built_in().expect("data/platforms.toml must load");
         let family_of = |name: &str| list.model(name).map(|model| model.family_id.clone());
         assert_eq!(family_of("C9350"), Some("catalyst-9300".to_string()));
         assert_eq!(family_of("C9550"), Some("catalyst-9500".to_string()));
         assert_eq!(family_of("C9610"), Some("catalyst-9600".to_string()));
+        assert_eq!(family_of("C9200CX"), Some("catalyst-9200".to_string()));
         assert_eq!(family_of("IE3500"), Some("ie3x00".to_string()));
         assert_eq!(family_of("IR1835"), Some("ir1800".to_string()));
         assert_eq!(list.models_in("ir1800").len(), 2);
+    }
+
+    #[test]
+    fn built_in_list_groups_families_by_image() {
+        let list = PlatformList::built_in().expect("data/platforms.toml must load");
+        let on_cat9k: Vec<&str> = list
+            .families_on("cat9k_iosxe")
+            .into_iter()
+            .map(|family| family.id.as_str())
+            .collect();
+        assert_eq!(
+            on_cat9k,
+            vec!["catalyst-9300", "catalyst-9400", "catalyst-9500", "catalyst-9600"]
+        );
+        let image_of = |id: &str| list.family(id).and_then(|family| family.image.clone());
+        assert_eq!(image_of("catalyst-9200"), Some("cat9k_lite_iosxe".to_string()));
+        assert_eq!(image_of("catalyst-9800"), Some("C9800-universalk9".to_string()));
+        assert_eq!(image_of("ie3x00"), Some("ie3x00-universalk9".to_string()));
+        // Not recorded yet: the program must say "unknown", not guess.
+        assert_eq!(image_of("catalyst-8300"), None);
+    }
+
+    #[test]
+    fn built_in_list_keeps_images_no_family_uses_yet() {
+        let list = PlatformList::built_in().expect("data/platforms.toml must load");
+        assert!(list.image("cat3k_caa-universalk9").is_some());
+        assert!(list.families_on("cat3k_caa-universalk9").is_empty());
+    }
+
+    #[test]
+    fn refuses_a_family_on_an_image_that_does_not_exist() {
+        let text = format!(
+            "{MINIMAL}\n[[family]]\nid = \"fam-b\"\nname = \"Family B\"\nimage = \"no-such-image\"\n"
+        );
+        assert_eq!(
+            PlatformList::from_toml(&text),
+            Err(DataError::UnknownReference {
+                what: "family",
+                id: "fam-b".to_string(),
+                field: "image",
+                target: "no-such-image".to_string()
+            })
+        );
+    }
+
+    #[test]
+    fn refuses_a_duplicate_image() {
+        let text = format!(
+            "{MINIMAL}\n[[image]]\nname = \"img\"\nsource = \"example\"\n\n[[image]]\nname = \"img\"\nsource = \"example\"\n"
+        );
+        assert_eq!(
+            PlatformList::from_toml(&text),
+            Err(DataError::Duplicate {
+                what: "image",
+                id: "img".to_string()
+            })
+        );
+    }
+
+    #[test]
+    fn refuses_an_image_with_a_source_that_does_not_exist() {
+        let text = format!("{MINIMAL}\n[[image]]\nname = \"img\"\nsource = \"nope\"\n");
+        assert_eq!(
+            PlatformList::from_toml(&text),
+            Err(DataError::UnknownReference {
+                what: "image",
+                id: "img".to_string(),
+                field: "source",
+                target: "nope".to_string()
+            })
+        );
+    }
+
+    #[test]
+    fn accepts_a_family_on_an_image_defined_later_in_the_file() {
+        // Order in the file does not matter: images are checked first.
+        let text = format!(
+            "{MINIMAL}\n[[family]]\nid = \"fam-b\"\nname = \"Family B\"\nimage = \"img\"\n\n[[image]]\nname = \"img\"\nsource = \"example\"\n"
+        );
+        let list = PlatformList::from_toml(&text).expect("valid file");
+        assert_eq!(list.families_on("img").len(), 1);
     }
 
     #[test]
