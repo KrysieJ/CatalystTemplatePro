@@ -1,0 +1,363 @@
+# Design Decisions
+
+This is the "why" document. If you want to change something here, read the
+reason first. If the reason no longer holds, change the decision and say so.
+If you just don't like it, tough; it's a personal project and the author
+gets to be stubborn.
+
+Date of writing: 2026-11-08. Everything about Cisco software versions,
+platforms, and documents is as of that date.
+
+## How to read the evidence labels
+
+Every factual claim below carries one of these:
+
+- **[Verified]**: seen on a primary source (Cisco's site, the linked
+  repositories) during this design phase. Cited in the references.
+- **[Author]**: stated by the author from hands-on experience with the gear.
+  Treated as a source of truth until the author says otherwise. Not
+  independently verified.
+- **[Unverified]**: believed true, not checked. These are the things to go
+  check before depending on them.
+
+Where sources conflict, the tool and the people building it stop and
+discuss. Nobody guesses. See D6.
+
+---
+
+## D1. Rust core, Rust GUI, nothing else
+
+**Decision.** The data model, validation, template generation, and the GUI
+are all Rust. No Electron, no embedded browser, no bundled JavaScript
+runtime.
+
+**Why.** The author needs this to be auditable by someone who is not the
+author, and to run on locked-down machines with no runtimes installed. A
+single compiled language with a locked dependency set is far easier to audit
+than a Rust core wrapped in a JavaScript dependency tree. Rust's type system
+also lets the compiler enforce data definitions that a design-recipe
+methodology wants enforced.
+
+**Rejected.** Vendoring a JavaScript block editor behind a Rust core.
+Cheaper to start, but it brings an npm dependency tree into an environment
+that cares about supply chain risk. A lighter web front end was also
+considered and rejected for the same reason.
+
+**Risk.** Native Rust GUI toolkits are less mature than web UI stacks.
+Custom Aero-style rendering (glass, gradients, bevels) may be hard. The
+toolkit choice is open (see Open Questions).
+
+## D2. Scratch is inspiration, not a code base
+
+**Decision.** No Scratch code is reused. The block-editor idea is borrowed;
+the implementation is original.
+
+**Why.** [Verified] scratch-desktop is an Electron application built with
+webpack and Babel, and it pulls in `scratch-gui` as a separate dependency
+[1]. That is the opposite of D1. [Verified] The repository is AGPL-3.0 and
+ships a `TRADEMARK` file [1]; the license text and trademark terms were not
+read, only their existence confirmed. Avoiding the code avoids the question.
+[Verified] It also includes an opt-in telemetry system [1], which conflicts
+with D4.
+
+**Risk.** Block-editor interaction design (snapping, drag and drop,
+nesting) has to be built from scratch. That is real work.
+
+## D3. Offline, packaged, Windows 11 first
+
+**Decision.** Ships as a compiled program that runs on Windows 11 with no
+runtime installs and no internet access. A packaged installer is preferred.
+A Microsoft Store version is possible later and not a driver.
+
+**Why.** [Author] The target environments include critical infrastructure
+(water, 911 dispatch, CUI-handling systems) where data sovereignty matters
+and where internet-dependent tools get rejected.
+
+**Rejected.** A cloud or web version. Any feature that needs the network at
+runtime. Any "phone home" update check.
+
+## D4. No telemetry. Ever.
+
+**Decision.** No telemetry, analytics, crash reporting to a remote server, or
+update beacons. Not even opt-in.
+
+**Why.** Opt-in is a policy, not a guarantee, and policies get audited. The
+only provable position is that the code has no such path.
+
+## D5. Method: How to Design Programs, translated for Rust
+
+**Decision.** Development follows the HtDP design recipe [2][3]: define the
+data, write the signature and purpose, write examples (as tests) before the
+function, then write the function. How to Design Classes [4] informs
+structure, translated to Rust structs, enums, and traits, because Rust has
+no classes.
+
+**Why.** [Author] The goal is that people who are not the original author
+can audit the code. A recipe with a fixed shape (data definition, signature,
+purpose statement, examples, body) gives auditors something to check
+mechanically. It also suits an author who cannot read the code but can read
+a data definition and a list of examples.
+
+**Mapping to Rust (proposed, not final).**
+
+| HtDP step | Rust form |
+|---|---|
+| Data definition | `struct` / `enum` with a doc comment saying what it represents |
+| Signature | The function type |
+| Purpose statement | Doc comment, one sentence |
+| Examples | Unit tests written first |
+| Template / body | The function |
+
+**Risk.** [Unverified] This design was written without reading the HtDP
+editions or HtDC in full. The mapping above is a proposal from general
+knowledge of the recipe. HtDC's class-oriented material has no direct Rust
+equivalent, so how it is translated is a judgment call that should be
+reviewed by someone who knows both.
+
+## D6. Sources of truth, and what happens when they disagree
+
+**Decision.** Each kind of question has one authority:
+
+| Question | Authority |
+|---|---|
+| Does command X exist, and what is its syntax? | Cisco command reference for that platform and release |
+| What does the config structure look like? | Cisco YANG models for that release (skeleton only) |
+| Is this template legal in Catalyst Center? | CATC-TEMPLATE-RAG [5] |
+| What is true about the author's own network or hardware? | The author |
+
+Conflicts between any two become a `SourceConflict` finding. The tool shows
+both sides and does not choose.
+
+**Why.** [Author] The RAG controls template accuracy but is an example and
+a source of truth, not the only factor. Cisco's references are authoritative
+for commands. [Author] YANG models exist for 26.1.1, 26.1.2, and 26.2.1.
+
+**Caveats on the RAG.** [Verified] It is a single-author repository with a
+handful of commits [5]. [Author] It is endorsed by Cisco projects; that
+endorsement was not independently verified. [Verified] It states it is
+distilled from Cisco documentation [5], so where it and Cisco disagree,
+Cisco wins and the discrepancy gets reported. Small internal inconsistencies
+were seen in its README (broken-looking links to `AGENTS.md` and `INDEX.md`;
+one Velocity example answer that cites a Jinja2-only directive) [5]. Report
+them upstream; do not silently work around them.
+
+**Risk.** [Unverified] YANG describes structure and may not map one-to-one to
+every CLI command. That is exactly why it supplies the skeleton and the
+command references confirm the CLI.
+
+## D7. The command catalog is data, not code
+
+**Decision.** Supported commands, arguments, modes, and per-platform notes
+live in data files generated from the sources in D6. Nobody types a command
+into Rust source by hand.
+
+**Why.** Cisco's command set is large, platform-specific, and changes every
+release. Hand-typed commands rot and hide mistakes. Data with a recorded
+source can be diffed between releases and audited.
+
+## D8. Platforms are modelled by image family, not by marketing name
+
+**Decision.** A platform entry records which software image family it runs,
+and a model entry records its differences from that family.
+
+**Why.** [Author] The IE3500 runs the same image as the IE3400: "x" in
+IE3x00 is a wildcard in the image name. The IR1833 and IR1835 share an image
+and a command reference and differ by an I/O header. The C9350, C9550, and
+C9610 run the same image as the "00" Catalyst 9k models but add features,
+such as power-management features not on the "00" models. The command
+references should be the same. Modelling by image means one catalog serves
+many models, and per-model differences are callouts.
+
+**Evidence notes.** [Verified] Cisco's 26.x release notes group
+"IE3x00, IE3100, IE3400 Heavy Duty, ESS3300" and "IR1101, IR1800, IR8140,
+IR8340" [6]. [Verified] The newer C9350, C9550, and C9610 have their own 26.x
+release notes [6]; command references were seen for the 9200, 9300, 9400,
+9500, and 9600 only [6]. [Verified] A search for IE3500 release notes
+returned 17.x notes and no 26.x ones [7]. The author's statement that it
+shares the IE3x00 image is treated as authoritative here, with the gap noted.
+
+**Versions the author runs.** [Author] 26.1.1, 26.1.2, and 26.2.1. 26.1.2 is
+the planned standard; 9200s go to 26.2.1.
+
+## D9. Every claim about availability is one of three things
+
+**Decision.** `Supported`, `NotSupported`, or `Unverified`, each with an
+optional license requirement and a source (document, release, retrieval
+date).
+
+**Why.** "I don't know" must be a representable answer. A tool that defaults
+unknown to "works" is lying, and a tool that defaults unknown to "broken" is
+annoying. Accuracy over every other metric.
+
+## D10. Licensing is feature-level, surfaced as a callout
+
+**Decision.** When Cisco documentation ties a feature to a license level, all
+commands for that feature inherit that requirement. If the target device
+does not have the license, the tool raises a callout. It does not block
+anything.
+
+**Why.** [Verified] Cisco's data sheets list features by package (Network
+Essentials versus Network Advantage) rather than by individual command [8].
+[Verified] Cisco's 9200 guide lists the base levels (Network Essentials,
+Network Advantage) and DNA add-ons (DNA Essentials, DNA Advantage) [9]. The
+author's examples: BGP and NetFlow are the sort of feature typically gated
+by license level. [Author]
+
+**Interpretation to confirm.** The author said the tool should "throw an
+error" when the license is missing and then clarified it should be a callout
+instead. This document records it as a callout, consistent with D11. Say so
+if that is wrong.
+
+**Risks.**
+- [Unverified] Cisco Feature Navigator is a likely source for
+  feature-to-license data, but it is a web tool. Whether it can feed an
+  offline catalog, and under what terms, is not checked.
+- [Unverified] License models for routers and IE/IR switches were not
+  checked. Anything without a Cisco source stays `Unverified`.
+- Command-to-feature mapping is a curated step and the likeliest place for
+  errors to creep in.
+
+## D11. The tool advises. The engineer decides.
+
+**Decision.** The tool never blocks an export. It produces findings: platform,
+license, workflow, template-syntax, and source-conflict. It can print a
+limitations report grouped by platform and license.
+
+**Why.** [Author] The users are engineers. They need reminders, not
+hand-holding. Catalyst Center failing a workflow because a replaced device is
+a different platform is the cautionary tale: the engineer already decided,
+and the software argued. The limitations report also gives an engineer
+something concrete to hand to leadership when a feature needs an upgrade.
+
+## D12. Features are modular; composition is done by the tool
+
+**Decision.** Each feature (AAA, admin interfaces, ACLs, and so on) is a
+component. A master is an ordered list of components. Components declare
+device roles, platforms, and the workflows they are valid in. Swapping one
+component for another (for example AAA for an 802.1x variant) is a single
+change to the master. At export the tool flattens, or uses native includes
+where proven safe.
+
+**Why.** [Author] AAA is mostly identical across PE, P, core, CE, and access
+devices, and sites migrate to port authentication at different times.
+Catalyst Center cannot be relied on to do the composing, because
+[Verified] its own rules differ by engine and workflow [5]:
+
+- Velocity: `#parse` and `#include` are disabled.
+- Jinja2: `{% include %}`, `{% extends %}`, and `{% import %}` are supported
+  and resolve against the Template Editor project tree.
+- Composite templates are valid only in DayN workflows.
+- PnP onboarding templates cannot use bind variables or `__*` system
+  variables.
+
+So export has three modes: flattened (required for Velocity and PnP), Jinja2
+with includes (where the RAG confirms it), and Composite (DayN only).
+
+## D13. Target output: Jinja2 and Velocity for Catalyst Center
+
+**Decision.** Both engines, following the RAG's constraints [5]. The tool
+must handle Catalyst Center specifics the RAG documents, such as `!` being
+forwarded into IOS config rather than treated as a comment, `#MODE_ENABLE`
+blocks, `<MLTCMD>` multi-line blocks, and compliance-ignore markers [5].
+
+## D14. How an author who can't read the code keeps the code honest
+
+**Decision.** Checking is mechanical, not based on trust.
+
+- **Tests first.** [Verified] The RAG ships 85+ Jinja2 and 14 Velocity real
+  templates [5]. They become the regression corpus.
+- **Separate validator** against the RAG's bad/good patterns.
+- **Locked dependencies**, a minimal dependency list, and `cargo audit` and
+  `cargo deny` in the build. No network at runtime.
+- **Human review.** A Rust developer reviews the code before anything touches
+  production.
+- **Disclosure.** Code is written with AI assistance. The README says so.
+
+**Why.** [Author] Vibe coding carries bug and vulnerability risk. A
+defense-in-depth mindset means not relying on any single control, including
+"the AI got it right."
+
+## D15. Synthetic data only
+
+**Decision.** No real configurations, addresses, credentials, or CUI in any
+cloud AI tool while working on this project. Test fixtures are synthetic.
+
+**Why.** [Author] The environments in view include 911 dispatch, water
+systems, and CUI as defined by the National Archives. A leak through a
+development tool is still a leak.
+
+## D16. Look and feel
+
+**Decision.** Dark theme as the native mode. Windows 7 Aero as the design
+language, as inspiration rather than a copy. The colors are the older
+off-teal and red. The logo is an original mark in the same spirit (a bridge
+motif), not Cisco's.
+
+**Why.** [Author] Dark themes are easier on the eyes, and the current
+flat-minimalist trend is a rejected design direction. Using the Cisco logo
+risks a trademark problem; an original homage does not. [Unverified]
+Cisco's trademark terms were not read. The README disclaims any
+affiliation.
+
+## D17. Phasing
+
+1. Catalog structure for the Catalyst 9300 (largest family, command
+   reference exists).
+2. Prove the pipeline end to end with AAA on the 9300 and 9200:
+   catalog, block, component, export, validate.
+3. Add 8300/8500, IR1800, and IE3x00 one at a time. Each addition tests the
+   "only a few commands" assumption.
+4. Add 9800 and the newer Catalyst 9k models with platform callouts.
+5. Other IOS XE 26 platforms: 8000V, 8000 Series Secure Routers, ESR6300,
+   IE9300, ESS9300 [6].
+6. Later, in order: UML-style modelling, SVG diagrams, IOS XE 16/17, IOS 15,
+   NX-OS (low priority).
+
+[Author] Platform priority follows what the author can test on. Legacy gear
+in the environment includes IE3000, IE4000, ISR 4300/4400, Catalyst 2960
+family, 3850, 6709, and NCS 2000 optical systems; these are out of scope for
+the 26 work.
+
+---
+
+## Open questions
+
+1. **GUI toolkit.** Which native Rust toolkit supports Aero-style rendering,
+   offline packaging, and accessibility? Needs a cited comparison first.
+2. **License data source.** Can Cisco Feature Navigator data be used offline?
+   What do the Cisco docs say for routers and IE/IR switches?
+3. **Command references for the newer 9k models.** Do the C9350, C9550, and
+   C9610 have separate references, or only the shared one?
+4. **IE3500 on 26.x.** Confirm on a real device and note the release-note
+   title gap.
+5. **License callout wording.** Confirm D10's interpretation.
+6. **Project name and license.** Neither is chosen.
+
+## Non-goals
+
+- Replacing Catalyst Center.
+- Pushing configs to devices. This tool produces templates.
+- Hand-holding or blocking engineers.
+- Any online or cloud feature.
+
+## References
+
+[1] Scratch Foundation, "scratch-desktop," GitHub. [Online]. Available: https://github.com/scratchfoundation/scratch-desktop
+
+[2] M. Felleisen, R. B. Findler, M. Flatt, and S. Krishnamurthi, *How to Design Programs*, 1st ed. [Online]. Available: https://htdp.org/2003-09-26/
+
+[3] ———, *How to Design Programs*, 2nd ed. [Online]. Available: https://htdp.org/2026-5-28//Book/index.html
+
+[4] M. Felleisen et al., *How to Design Classes*. [Online]. Available: https://felleisen.org/matthias/HtDC/htdc.pdf
+
+[5] K. Baldwin, "CATC-TEMPLATE-RAG," GitHub. [Online]. Available: https://github.com/kebaldwi/CATC-TEMPLATE-RAG
+
+[6] Cisco Systems, "Cisco IOS XE 26," Cisco Support. [Online]. Available: https://www.cisco.com/c/en/us/support/ios-nx-os-software/ios-xe-26/products-release-notes-list.html
+
+[7] Cisco Systems, "Cisco IE3500 Rugged Series: Release Notes," Cisco Support. [Online]. Available: https://www.cisco.com/c/en/us/support/switches/ie3500-rugged-series/products-release-notes-list.html
+
+[8] Cisco Systems, "Cisco Catalyst 9500 Series Switches Data Sheet," Cisco, 2025.
+
+[9] Cisco Systems, "Configuring the License Level," Cisco Catalyst 9200 Configuration Guide.
+
+*Author attributions in [2]-[4] are from general knowledge and were not checked against the books' title pages.*
