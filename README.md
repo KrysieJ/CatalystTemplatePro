@@ -5,8 +5,9 @@ Cisco Catalyst Center configuration templates (Jinja2 and Apache Velocity)
 from a visual block editor, without having to be programmers.
 
 **Status: early groundwork.** The core data definitions exist (releases,
-sources, licenses, platforms, availability, findings). There is no GUI and
-no template generation yet. Read
+sources, licenses, platforms, availability, findings), and the platform list
+is a checked data file, `data/platforms.toml`. There is no GUI and no
+template generation yet. Read
 [docs/DESIGN-DECISIONS.md](docs/DESIGN-DECISIONS.md) to see what has been
 decided, why, and what is still open.
 
@@ -65,7 +66,9 @@ You need the Rust toolchain (`cargo`). From the repository folder:
 cargo test
 ```
 
-That builds the library and runs every example. All of them should pass. A
+That builds the library and runs every example. The first build after a
+dependency is added needs internet access once, to download it; builds after
+that work offline. All of them should pass. A
 failing test means either the code or the example is wrong, and both are
 worth reading. The first build also creates `Cargo.lock`; commit it, so every
 later build uses exactly the same dependency versions.

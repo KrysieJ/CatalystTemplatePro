@@ -1,0 +1,177 @@
+# CatalystTemplatePro platform list.
+#
+# Families are groups of hardware models that share one Cisco command
+# reference. Models point at a family and at the source that says they
+# belong there. See docs/DESIGN-DECISIONS.md, D8 and D20.
+#
+# Rules the program checks when it loads this file (it refuses the whole
+# file if any fail):
+#   - every id and model name is unique and not empty
+#   - every model's family exists below
+#   - every model's source exists below
+#   - every date is real and written as YYYY-MM-DD
+#   - no field is misspelled or unknown
+#
+# To add a device that runs a family's image, add a [[model]] entry and,
+# if needed, a [[source]] entry that backs it. No code change is needed.
+
+schema_version = 1
+
+# ---------------------------------------------------------------- sources
+
+[[source]]
+id = "cisco-iosxe26-release-notes"
+kind = "release-notes"
+title = "Cisco IOS XE 26 release notes list"
+location = "https://www.cisco.com/c/en/us/support/ios-nx-os-software/ios-xe-26/products-release-notes-list.html"
+retrieved = "2026-11-08"
+
+[[source]]
+id = "engineer-newer-c9k-models"
+kind = "engineer-statement"
+title = "C9350, C9550 and C9610 run the same image as the matching 00 models, with extra features such as power management; the command references are the same"
+retrieved = "2026-11-08"
+
+[[source]]
+id = "engineer-ie3x00"
+kind = "engineer-statement"
+title = "The IE3500 runs the same IE3x00 image as the IE3400; x is a wildcard in the image name"
+retrieved = "2026-11-08"
+
+[[source]]
+id = "engineer-ir1800"
+kind = "engineer-statement"
+title = "The IR1833 and IR1835 use the same image and command reference; they differ by an I/O header"
+retrieved = "2026-11-08"
+
+[[source]]
+id = "engineer-c9800-40"
+kind = "engineer-statement"
+title = "A C9800-40 wireless controller is in service on IOS XE 26.1.2"
+retrieved = "2026-11-08"
+
+# --------------------------------------------------------------- families
+
+[[family]]
+id = "catalyst-9200"
+name = "Catalyst 9200"
+
+[[family]]
+id = "catalyst-9300"
+name = "Catalyst 9300"
+
+[[family]]
+id = "catalyst-9400"
+name = "Catalyst 9400"
+
+[[family]]
+id = "catalyst-9500"
+name = "Catalyst 9500"
+
+[[family]]
+id = "catalyst-9600"
+name = "Catalyst 9600"
+
+[[family]]
+id = "catalyst-9800"
+name = "Catalyst 9800"
+note = "Wireless controllers. Large command family of its own."
+
+[[family]]
+id = "catalyst-8300"
+name = "Catalyst 8300"
+note = "Unverified whether the 8200 belongs here; Cisco publishes 8200 and 8300 release notes together."
+
+[[family]]
+id = "catalyst-8500"
+name = "Catalyst 8500"
+
+[[family]]
+id = "ir1800"
+name = "IR1800"
+
+[[family]]
+id = "ie3x00"
+name = "IE3x00"
+note = "The x is a wildcard in the image name."
+
+# ----------------------------------------------------------------- models
+
+[[model]]
+name = "C9200"
+family = "catalyst-9200"
+source = "cisco-iosxe26-release-notes"
+
+[[model]]
+name = "C9300"
+family = "catalyst-9300"
+source = "cisco-iosxe26-release-notes"
+
+[[model]]
+name = "C9350"
+family = "catalyst-9300"
+source = "engineer-newer-c9k-models"
+note = "Extra features over the C9300, such as power management. Expect platform callouts."
+
+[[model]]
+name = "C9400"
+family = "catalyst-9400"
+source = "cisco-iosxe26-release-notes"
+
+[[model]]
+name = "C9500"
+family = "catalyst-9500"
+source = "cisco-iosxe26-release-notes"
+
+[[model]]
+name = "C9550"
+family = "catalyst-9500"
+source = "engineer-newer-c9k-models"
+note = "Extra features over the C9500. Expect platform callouts."
+
+[[model]]
+name = "C9600"
+family = "catalyst-9600"
+source = "cisco-iosxe26-release-notes"
+
+[[model]]
+name = "C9610"
+family = "catalyst-9600"
+source = "engineer-newer-c9k-models"
+note = "Extra features over the C9600. Expect platform callouts."
+
+[[model]]
+name = "C9800-40"
+family = "catalyst-9800"
+source = "engineer-c9800-40"
+
+[[model]]
+name = "C8300"
+family = "catalyst-8300"
+source = "cisco-iosxe26-release-notes"
+
+[[model]]
+name = "C8500"
+family = "catalyst-8500"
+source = "cisco-iosxe26-release-notes"
+
+[[model]]
+name = "IR1833"
+family = "ir1800"
+source = "engineer-ir1800"
+
+[[model]]
+name = "IR1835"
+family = "ir1800"
+source = "engineer-ir1800"
+
+[[model]]
+name = "IE3400"
+family = "ie3x00"
+source = "cisco-iosxe26-release-notes"
+
+[[model]]
+name = "IE3500"
+family = "ie3x00"
+source = "engineer-ie3x00"
+note = "Cisco's 26.x release-note titles seen so far name IE3x00, IE3100 and IE3400 but not IE3500."

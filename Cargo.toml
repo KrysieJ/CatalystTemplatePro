@@ -2,10 +2,12 @@
 name = "catalyst-template-pro"
 version = "0.0.1"
 edition = "2021"
-rust-version = "1.75"
 description = "Offline builder for modular Cisco Catalyst Center templates"
 publish = false
 
 [dependencies]
-# None, on purpose. Every dependency is code someone has to audit.
-# See docs/DESIGN-DECISIONS.md, D14 and D18.
+# Each dependency is chosen on purpose and recorded in
+# docs/DESIGN-DECISIONS.md (D18, D23). Exact versions are pinned by
+# Cargo.lock, which is committed.
+serde = { version = "1", features = ["derive"] }
+toml = "1"

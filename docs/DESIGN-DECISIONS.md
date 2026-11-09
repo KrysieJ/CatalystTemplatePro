@@ -320,14 +320,17 @@ in the environment includes IE3000, IE4000, ISR 4300/4400, Catalyst 2960
 family, 3850, 6709, and NCS 2000 optical systems; these are out of scope for
 the 26 work.
 
-## D18. Zero dependencies, for now
+## D18. Dependencies only on purpose
 
-**Decision.** The core library uses only the Rust standard library. Dates are
-stored as three plain numbers instead of using a date library.
+**Decision.** The core library started with only the Rust standard library.
+A dependency is added only when it earns its place, it is written down here
+with the reason, and its exact version is locked in the committed
+`Cargo.lock`. Dates stay three plain numbers instead of a date library.
 
 **Why.** Every dependency is someone else's code that has to be audited and
-kept patched. Nothing written so far needs one. When something does (the GUI
-will), the dependency is added on purpose, written down here, and locked.
+kept patched.
+
+**Dependencies so far.** `serde` and `toml`, for reading data files (D23).
 
 ## D19. Make wrong states impossible to write down
 
@@ -357,13 +360,16 @@ change.
 **What this gives up, and the replacement.** With a fixed list, the compiler
 pointed at every place that had to handle a new family. With a data file it
 cannot. The replacement check: the tool validates the platform file when it
-loads it, and refuses a file with duplicate names, models pointing at a
-family that does not exist, or missing sources. A bad file gives a clear
-error naming the line.
+loads it, and refuses the whole file if anything is wrong: a duplicate name
+or id, a blank name, a model pointing at a family or source that does not
+exist, a date or release that is not real, a misspelled or unknown field, or
+a newer file layout than the program understands. A broken TOML file or a
+misspelled field gives an error naming the line. The other errors name the
+entry and field instead, because by then the file has already been read.
 
-**Status.** Decided, not yet built. The first code (src/platform.rs) still
-has the fixed list and will be replaced when the data-file format is chosen,
-alongside the command catalog format (D7), so both use the same format.
+**Status.** Built. The list is `data/platforms.toml`, which is built into
+the program so it works offline. Every model names the source that says
+which family it belongs to.
 
 ## D21. "Unverified" is its own kind of finding
 
@@ -391,6 +397,31 @@ add-ons are also called Catalyst Essentials and Advantage.
 particular base level. License models for routers, IE/IR switches, and the
 9800. Licenses that are not recorded give a reminder, not silence.
 
+## D23. Data files are TOML
+
+**Decision (2026-11-08, author).** The platform list, and later the command
+catalog, are TOML files. They are read with the `serde` and `toml` Rust
+libraries.
+
+**Why.** TOML is plain text an engineer can read and edit, it handles nested
+data (a command with its arguments), and changes show up cleanly in Git.
+
+**Rejected.**
+- CSV: editable in Excel, but nesting needs extra sheets.
+- A custom format: no dependencies, but a hand-written reader is exactly
+  where bugs hide.
+
+**Cost.** Two libraries, and what they pull in, become code to audit.
+[Verified] `toml` is at 1.x and implements TOML spec 1.1 (docs.rs, toml
+1.0.3+spec-1.1.0, built 2026-02-18). Versions are pinned by `Cargo.lock`.
+`cargo audit` and `cargo deny` (D14) should be added to the build before
+release.
+
+**How files are read.** In two steps. First, the TOML is read into structures
+that mirror the file exactly, refusing unknown or misspelled fields. Second,
+those are checked and turned into the program's own types (D19). Nothing
+unchecked gets past the loader.
+
 ---
 
 ## Open questions
@@ -405,9 +436,8 @@ particular base level. License models for routers, IE/IR switches, and the
    title gap.
 5. **License callout wording.** Confirm D10's interpretation.
 6. **Project license.** Not chosen.
-7. **Data file format** for the platform list and the command catalog (D7,
-   D20). Readable by an engineer, diffable in Git, and loadable without
-   pulling in risky dependencies.
+7. **Command catalog layout** in TOML (D7, D23): how a command, its
+   arguments, its mode, and its per-platform availability are written.
 
 ## Non-goals
 

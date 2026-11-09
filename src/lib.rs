@@ -14,6 +14,7 @@
 #![warn(missing_docs)]
 
 pub mod availability;
+pub mod data;
 pub mod finding;
 pub mod license;
 pub mod platform;

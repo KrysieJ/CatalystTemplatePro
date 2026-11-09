@@ -1,7 +1,11 @@
 //! Where a fact came from, so every claim the tool makes can be checked.
 
+use std::collections::BTreeMap;
 use std::fmt;
 
+use serde::Deserialize;
+
+use crate::data::DataError;
 use crate::release::Release;
 
 /// A calendar date, used to record when a source was read.
@@ -11,8 +15,8 @@ use crate::release::Release;
 ///
 /// Example of data: 8 November 2026 is `Date::new(2026, 11, 8)`.
 ///
-/// The fields are private so that a date can only be made through `new`,
-/// which refuses dates that do not exist (such as 31 April).
+/// The fields are private so that a date can only be made through `new`
+/// or `parse`, which refuse dates that do not exist (such as 31 April).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Date {
     year: u16,
@@ -31,6 +35,26 @@ impl Date {
             return None;
         }
         Some(Date { year, month, day })
+    }
+
+    /// Purpose: read a date written as YYYY-MM-DD, such as "2026-11-08".
+    /// Gives back `None` for any other shape or for a date that does not
+    /// exist.
+    pub fn parse(text: &str) -> Option<Date> {
+        let parts: Vec<&str> = text.trim().split('-').collect();
+        if parts.len() != 3 || parts[0].len() != 4 || parts[1].len() != 2 || parts[2].len() != 2 {
+            return None;
+        }
+        if !parts
+            .iter()
+            .all(|part| part.chars().all(|c| c.is_ascii_digit()))
+        {
+            return None;
+        }
+        let year = parts[0].parse::<u16>().ok()?;
+        let month = parts[1].parse::<u8>().ok()?;
+        let day = parts[2].parse::<u8>().ok()?;
+        Date::new(year, month, day)
     }
 }
 
@@ -66,7 +90,10 @@ impl fmt::Display for Date {
 /// The kind of document or statement a fact came from.
 ///
 /// Which kind answers which question is set in docs/DESIGN-DECISIONS.md, D6.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// In data files each kind is written in lowercase with hyphens, such as
+/// `kind = "command-reference"` or `kind = "engineer-statement"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum SourceKind {
     /// A Cisco command reference. Authority for command syntax.
     CommandReference,
@@ -89,8 +116,7 @@ pub enum SourceKind {
 ///
 /// Example of data: the Catalyst 9300 command reference for IOS XE 26,
 /// read on 8 November 2026, is a `Source` with kind `CommandReference`,
-/// title "Command Reference, Cisco IOS XE 26.x.x (Catalyst 9300 Switches)",
-/// no single release, and that retrieval date.
+/// its title as Cisco gives it, no single release, and that retrieval date.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Source {
     /// What kind of document or statement this is.
@@ -121,9 +147,114 @@ impl Source {
     }
 }
 
+/// A `[[source]]` entry exactly as written in a data file, before checking.
+///
+/// Example in a file:
+/// ```toml
+/// [[source]]
+/// id = "cisco-iosxe26-release-notes"
+/// kind = "release-notes"
+/// title = "Cisco IOS XE 26 release notes list"
+/// location = "https://www.cisco.com/..."
+/// retrieved = "2026-11-08"
+/// ```
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RawSource {
+    pub(crate) id: String,
+    pub(crate) kind: SourceKind,
+    pub(crate) title: String,
+    #[serde(default)]
+    pub(crate) release: Option<String>,
+    #[serde(default)]
+    pub(crate) location: Option<String>,
+    pub(crate) retrieved: String,
+}
+
+/// The sources listed in one data file, looked up by their id.
+///
+/// Entries elsewhere in the file name a source by id instead of repeating
+/// it, so one document can back many claims.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SourceTable {
+    by_id: BTreeMap<String, Source>,
+}
+
+impl SourceTable {
+    /// Purpose: check raw `[[source]]` entries and build the table, or
+    /// refuse with the first problem found.
+    pub(crate) fn from_raw(raw: Vec<RawSource>) -> Result<SourceTable, DataError> {
+        let mut by_id = BTreeMap::new();
+        for entry in raw {
+            if entry.id.trim().is_empty() {
+                return Err(DataError::BadValue {
+                    what: "source",
+                    id: entry.id.clone(),
+                    field: "id",
+                    value: entry.id,
+                });
+            }
+            if entry.title.trim().is_empty() {
+                return Err(DataError::BadValue {
+                    what: "source",
+                    id: entry.id,
+                    field: "title",
+                    value: entry.title,
+                });
+            }
+            if by_id.contains_key(&entry.id) {
+                return Err(DataError::Duplicate {
+                    what: "source",
+                    id: entry.id,
+                });
+            }
+            let retrieved = match Date::parse(&entry.retrieved) {
+                Some(date) => date,
+                None => {
+                    return Err(DataError::BadValue {
+                        what: "source",
+                        id: entry.id,
+                        field: "retrieved",
+                        value: entry.retrieved,
+                    })
+                }
+            };
+            let release = match entry.release {
+                Some(text) => match Release::parse(&text) {
+                    Ok(release) => Some(release),
+                    Err(_) => {
+                        return Err(DataError::BadValue {
+                            what: "source",
+                            id: entry.id,
+                            field: "release",
+                            value: text,
+                        })
+                    }
+                },
+                None => None,
+            };
+            let source = Source {
+                kind: entry.kind,
+                title: entry.title,
+                release,
+                location: entry.location,
+                retrieved,
+            };
+            by_id.insert(entry.id, source);
+        }
+        Ok(SourceTable { by_id })
+    }
+
+    /// Purpose: find a source by its id.
+    pub fn get(&self, id: &str) -> Option<&Source> {
+        self.by_id.get(id)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{Date, Source, SourceKind};
+    use super::{Date, RawSource, Source, SourceKind, SourceTable};
+    use crate::data::DataError;
     use crate::release::Release;
 
     #[test]
@@ -162,6 +293,22 @@ mod tests {
     }
 
     #[test]
+    fn reads_a_written_date() {
+        assert_eq!(Date::parse("2026-11-08"), Date::new(2026, 11, 8));
+        assert_eq!(Date::parse(" 2026-11-08 "), Date::new(2026, 11, 8));
+    }
+
+    #[test]
+    fn refuses_written_dates_in_other_shapes() {
+        assert_eq!(Date::parse("2026-11-8"), None);
+        assert_eq!(Date::parse("11/08/2026"), None);
+        assert_eq!(Date::parse("2026-11"), None);
+        assert_eq!(Date::parse("2026-+1-08"), None);
+        assert_eq!(Date::parse("2026-02-30"), None);
+        assert_eq!(Date::parse(""), None);
+    }
+
+    #[test]
     fn describes_a_source_with_only_a_title_and_date() {
         let source = Source {
             kind: SourceKind::CommandReference,
@@ -190,5 +337,78 @@ mod tests {
             source.describe(),
             "Example Configuration Guide, release 26.1.2, Chapter: Example, retrieved 2026-11-08"
         );
+    }
+
+    /// A synthetic raw source for tests. It is not a real document.
+    fn raw(id: &str, retrieved: &str, release: Option<&str>) -> RawSource {
+        RawSource {
+            id: id.to_string(),
+            kind: SourceKind::ReleaseNotes,
+            title: "Example release notes (synthetic test fixture)".to_string(),
+            release: release.map(str::to_string),
+            location: None,
+            retrieved: retrieved.to_string(),
+        }
+    }
+
+    #[test]
+    fn source_table_finds_entries_by_id() {
+        let table = SourceTable::from_raw(vec![raw("a", "2026-11-08", Some("26.1.2"))])
+            .expect("a valid source");
+        let found = table.get("a").expect("source a is in the table");
+        assert_eq!(found.release, Some(Release::new(26, 1, 2)));
+        assert!(table.get("b").is_none());
+    }
+
+    #[test]
+    fn source_table_refuses_duplicate_ids() {
+        let result = SourceTable::from_raw(vec![
+            raw("a", "2026-11-08", None),
+            raw("a", "2026-11-08", None),
+        ]);
+        assert_eq!(
+            result,
+            Err(DataError::Duplicate {
+                what: "source",
+                id: "a".to_string()
+            })
+        );
+    }
+
+    #[test]
+    fn source_table_refuses_dates_that_do_not_exist() {
+        let result = SourceTable::from_raw(vec![raw("a", "2026-02-30", None)]);
+        assert_eq!(
+            result,
+            Err(DataError::BadValue {
+                what: "source",
+                id: "a".to_string(),
+                field: "retrieved",
+                value: "2026-02-30".to_string()
+            })
+        );
+    }
+
+    #[test]
+    fn source_table_refuses_releases_that_are_not_releases() {
+        let result = SourceTable::from_raw(vec![raw("a", "2026-11-08", Some("26.x.x"))]);
+        assert_eq!(
+            result,
+            Err(DataError::BadValue {
+                what: "source",
+                id: "a".to_string(),
+                field: "release",
+                value: "26.x.x".to_string()
+            })
+        );
+    }
+
+    #[test]
+    fn source_table_refuses_an_empty_id() {
+        let result = SourceTable::from_raw(vec![raw(" ", "2026-11-08", None)]);
+        assert!(matches!(
+            result,
+            Err(DataError::BadValue { field: "id", .. })
+        ));
     }
 }
