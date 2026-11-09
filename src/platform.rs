@@ -11,9 +11,8 @@ use crate::release::Release;
 /// one command catalog serves the whole family and per-model differences
 /// become callouts. See docs/DESIGN-DECISIONS.md, D8.
 ///
-/// This list is closed on purpose: adding a family is a small code change,
-/// and the compiler then points at every place that must handle it.
-/// See D20.
+/// Temporary: this fixed list will be replaced by a platform data file, so
+/// that adding a device needs no code change. See D20.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Family {
     /// Catalyst 9200 series.

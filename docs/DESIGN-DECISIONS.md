@@ -344,24 +344,33 @@ that should not exist:
 **Why.** Accuracy over everything else, and an author who cannot read the
 code. A rule the compiler enforces does not depend on anyone remembering it.
 
-## D20. Platform families are a fixed list in the code
+## D20. Platform families live in their own data file
 
-**Decision.** Families (Catalyst 9300, IR1800, IE3x00 and so on) are a closed
-list in the Rust source. Models within a family are data.
+**Decision (2026-11-08, author).** Platform families and models move out of
+the Rust source into their own data file. Adding a device must not need a
+code change or a rebuild.
 
-**Why.** When a family is added, the compiler points at every place that has
-to handle it, so nothing is forgotten. Adding one is a small, reviewable
+**Why.** [Author] Supporting a new device should be cheap when it only takes
+a few commands. A closed list in the code makes every new family a code
 change.
 
-**Trade-off.** Adding a family means a code change and a rebuild, which cuts
-against "if a new device only needs a few commands, just add it". If families
-get added often, move them into data files. **Open for the author to
-confirm.**
+**What this gives up, and the replacement.** With a fixed list, the compiler
+pointed at every place that had to handle a new family. With a data file it
+cannot. The replacement check: the tool validates the platform file when it
+loads it, and refuses a file with duplicate names, models pointing at a
+family that does not exist, or missing sources. A bad file gives a clear
+error naming the line.
+
+**Status.** Decided, not yet built. The first code (src/platform.rs) still
+has the fixed list and will be replaced when the data-file format is chosen,
+alongside the command catalog format (D7), so both use the same format.
 
 ## D21. "Unverified" is its own kind of finding
 
 **Decision.** When nothing confirms a command works on the target, the tool
 says so with a finding of kind *unverified*, which carries no source.
+
+**Status.** Confirmed by the author, 2026-11-08.
 
 **Why.** Folding it into "platform" would make "Cisco says no" and "nobody
 has checked" look the same. They are different, and an engineer, or the
@@ -396,7 +405,9 @@ particular base level. License models for routers, IE/IR switches, and the
    title gap.
 5. **License callout wording.** Confirm D10's interpretation.
 6. **Project license.** Not chosen.
-7. **Families in code or in data.** See D20.
+7. **Data file format** for the platform list and the command catalog (D7,
+   D20). Readable by an engineer, diffable in Git, and loadable without
+   pulling in risky dependencies.
 
 ## Non-goals
 
